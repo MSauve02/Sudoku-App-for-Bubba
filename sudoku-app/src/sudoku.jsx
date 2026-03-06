@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const DAD_JOKES = [
+// Massive joke pool — we track used ones and never repeat
+const ALL_DAD_JOKES = [
   "Why did the sudoku puzzle go to therapy? It had too many issues to work through.",
   "I told my wife she was drawing her eyebrows too high. She looked surprised.",
   "What do you call a fake noodle? An impasta.",
@@ -21,6 +22,86 @@ const DAD_JOKES = [
   "What do you call a sleeping dinosaur? A dino-snore.",
   "I would tell you a joke about pizza, but it's too cheesy.",
   "Why did the golfer bring two pairs of pants? In case he got a hole in one.",
+  "What do you call a dog that does magic? A Labracadabrador.",
+  "I used to play piano by ear, but now I use my hands.",
+  "Why did the coffee file a police report? It got mugged.",
+  "What did one wall say to the other? I'll meet you at the corner.",
+  "How do you organize a space party? You planet.",
+  "Why don't skeletons fight each other? They don't have the guts.",
+  "What do you call a fish without eyes? A fsh.",
+  "I asked my dog what two minus two is. He said nothing.",
+  "What do you get when you cross a snowman with a vampire? Frostbite.",
+  "Why did the bicycle fall over? Because it was two tired.",
+  "What's orange and sounds like a parrot? A carrot.",
+  "I got hit in the head with a can of soda. Luckily it was a soft drink.",
+  "Why do cows wear bells? Because their horns don't work.",
+  "What did the grape do when it got stepped on? It let out a little wine.",
+  "How does a penguin build its house? Igloos it together.",
+  "I tried to catch some fog. I mist.",
+  "Why can't your nose be 12 inches long? Because then it'd be a foot.",
+  "What do you call a can opener that doesn't work? A can't opener.",
+  "How do you make a tissue dance? Put a little boogie in it.",
+  "I don't trust stairs. They're always up to something.",
+  "What did the buffalo say when his kid left for school? Bison.",
+  "Want to hear a joke about construction? I'm still working on it.",
+  "What do you call a lazy kangaroo? A pouch potato.",
+  "Why did the man fall down the well? Because he couldn't see that well.",
+  "What do sprinters eat before a race? Nothing, they fast.",
+  "What do you call an alligator in a vest? An investigator.",
+  "I only know 25 letters of the alphabet. I don't know Y.",
+  "Why did the stadium get hot? All the fans left.",
+  "What do you call a factory that makes okay products? A satisfactory.",
+  "Why did the tomato turn red? Because it saw the salad dressing.",
+  "What did one plate say to another? Dinner's on me.",
+  "How do celebrities stay cool? They have lots of fans.",
+  "Why couldn't the leopard play hide and seek? Because he was always spotted.",
+  "What do you call a boomerang that doesn't come back? A stick.",
+  "I'm terrified of elevators, so I'm going to start taking steps to avoid them.",
+  "Why don't oysters share? Because they're shellfish.",
+  "What do you call a sleeping bull? A bulldozer.",
+  "How does Moses make his coffee? Hebrews it.",
+  "Why did the chicken go to the seance? To get to the other side.",
+  "I used to be a banker, but I lost interest.",
+  "What kind of shoes do ninjas wear? Sneakers.",
+  "Why don't scientists trust atoms? They make up everything.",
+  "I told my wife she was overreacting. She just rolled her eyes and knocked over the Christmas tree.",
+  "What do dentists call their x-rays? Tooth pics.",
+  "Why did the invisible man turn down the job offer? He couldn't see himself doing it.",
+  "What did the left eye say to the right eye? Between us, something smells.",
+  "Why can't you hear a pterodactyl going to the bathroom? Because the p is silent.",
+  "What do you call a train carrying bubble gum? A chew-chew train.",
+  "Why did the belt get arrested? For holding up a pair of pants.",
+  "What do you call birds that stick together? Velcrows.",
+  "I used to hate math, but then I realized decimals have a point.",
+  "What's a pirate's favorite letter? You'd think it's R, but it's the C.",
+  "How do you make an octopus laugh? With ten-tickles.",
+  "Why did the painting go to jail? Because it was framed.",
+  "What do elves learn in school? The elf-abet.",
+  "Why did the mushroom go to the party? Because he was a fungi.",
+  "I have a joke about time travel, but you didn't like it.",
+  "What do clouds wear under their shorts? Thunderpants.",
+  "Why don't eggs tell each other secrets? They'd crack under pressure.",
+  "What did the fish say when it hit the wall? Dam.",
+  "How do trees access the internet? They log in.",
+  "What kind of music do mummies listen to? Wrap music.",
+  "Why did the gym close down? It just didn't work out.",
+  "What do you call a dinosaur that crashes their car? Tyrannosaurus Wrecks.",
+  "I was going to tell a joke about paper, but it's tearable.",
+  "What did the hat say to the scarf? You hang around, I'll go on ahead.",
+  "Why couldn't the pirate play cards? Because he was standing on the deck.",
+  "What do you call a pig that does karate? A pork chop.",
+  "I went to buy camouflage trousers but I couldn't find any.",
+  "How do you follow Will Smith in the snow? You follow the fresh prints.",
+  "Why did the old man fall in the well? Because he couldn't see that well.",
+  "What do you call a funny mountain? Hill-arious.",
+  "Why couldn't the sesame seed leave the casino? He was on a roll.",
+  "I'm reading a horror story in braille. Something bad is about to happen, I can feel it.",
+  "What's the best thing about Switzerland? I don't know, but the flag is a big plus.",
+  "Why did the student eat his homework? Because the teacher told him it was a piece of cake.",
+  "I tried to write a song about tortillas. Actually, it's more of a wrap.",
+  "Why do seagulls fly over the sea? Because if they flew over the bay, they'd be bagels.",
+  "What do you call a deer with no eyes? No-eye-deer.",
+  "I wouldn't buy anything with velcro. It's a total rip-off.",
 ];
 
 const GRID_CONFIGS = {
@@ -76,6 +157,43 @@ function generateComplete(size, boxRows, boxCols) {
   return board;
 }
 
+// Count solutions (stop at 2 — we only need to know if there's exactly 1)
+function countSolutions(puzzle, size, boxRows, boxCols, limit = 2) {
+  const board = puzzle.map(r => [...r]);
+  let count = 0;
+  function isValid(row, col, num) {
+    for (let i = 0; i < size; i++) {
+      if (board[row][i] === num || board[i][col] === num) return false;
+    }
+    const br = Math.floor(row / boxRows) * boxRows;
+    const bc = Math.floor(col / boxCols) * boxCols;
+    for (let i = br; i < br + boxRows; i++)
+      for (let j = bc; j < bc + boxCols; j++)
+        if (board[i][j] === num) return false;
+    return true;
+  }
+  function solve() {
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (board[r][c] === 0) {
+          for (let n = 1; n <= size; n++) {
+            if (isValid(r, c, n)) {
+              board[r][c] = n;
+              solve();
+              if (count >= limit) return;
+              board[r][c] = 0;
+            }
+          }
+          return;
+        }
+      }
+    }
+    count++;
+  }
+  solve();
+  return count;
+}
+
 function generatePuzzle(gridKey, difficulty) {
   const { size, boxRows, boxCols } = GRID_CONFIGS[gridKey];
   const solution = generateComplete(size, boxRows, boxCols);
@@ -86,10 +204,18 @@ function generatePuzzle(gridKey, difficulty) {
     for (let c = 0; c < size; c++)
       positions.push([r, c]);
   positions.sort(() => Math.random() - 0.5);
+
+  let removed = 0;
   for (const [r, c] of positions) {
-    if (toRemove <= 0) break;
+    if (removed >= toRemove) break;
+    const backup = puzzle[r][c];
     puzzle[r][c] = 0;
-    toRemove--;
+    // Check unique solution
+    if (countSolutions(puzzle, size, boxRows, boxCols, 2) !== 1) {
+      puzzle[r][c] = backup; // put it back — removing this creates ambiguity
+    } else {
+      removed++;
+    }
   }
   return { puzzle, solution };
 }
@@ -107,6 +233,7 @@ const COLORS = {
   given: "#4a2c3d", userInput: "#7b5ea7", highlight: "rgba(212, 99, 122, 0.06)",
   cellBorder: "rgba(180, 130, 150, 0.15)", boxBorder: "rgba(212, 99, 122, 0.5)",
   selected: "rgba(212, 99, 122, 0.18)", sameNum: "rgba(196, 122, 46, 0.1)",
+  excluded: "rgba(212, 99, 122, 0.35)",
 };
 
 const Hedgehog = ({ size = 40, style = {}, flip = false }) => (
@@ -183,6 +310,28 @@ const GLOBAL_CSS = `
 
 const BG = { minHeight: "100vh", background: "linear-gradient(135deg, #fff0f3 0%, #ffe4e9 50%, #ffd6e0 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'Georgia', serif", color: COLORS.text, padding: 20, position: "relative" };
 
+// Number pad row component
+const NumRow = ({ numbers, board, gridSize, handleNumber, excludeMode, selected, excluded, handleExclude }) => (
+  <div style={{ display: "grid", gridTemplateColumns: `repeat(${numbers.length}, 1fr)`, gap: 6, width: "100%" }}>
+    {numbers.map(n => {
+      const count = board.flat().filter(v => v === n).length;
+      const allPlaced = count >= gridSize;
+      const isExcludedForCell = excludeMode && selected && excluded[`${selected[0]}-${selected[1]}`]?.has(n);
+      return (
+        <button key={n} className="num-btn" onClick={() => excludeMode ? handleExclude(n) : handleNumber(n)} disabled={!excludeMode && allPlaced} style={{
+          aspectRatio: "1", borderRadius: 12,
+          background: isExcludedForCell ? COLORS.accentSoft : allPlaced && !excludeMode ? `${COLORS.surface}88` : COLORS.surface,
+          color: isExcludedForCell ? COLORS.accent : allPlaced && !excludeMode ? COLORS.textDim + "44" : COLORS.text,
+          fontFamily: "'Playfair Display', Georgia, serif",
+          fontSize: gridSize <= 4 ? "clamp(22px, 7vw, 30px)" : gridSize <= 6 ? "clamp(20px, 5.5vw, 28px)" : "clamp(18px, 5vw, 26px)",
+          fontWeight: 700, opacity: allPlaced && !excludeMode ? 0.4 : 1,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>{n}</button>
+      );
+    })}
+  </div>
+);
+
 export default function SudokuApp() {
   const [screen, setScreen] = useState("menu");
   const [gridKey, setGridKey] = useState(null);
@@ -198,16 +347,35 @@ export default function SudokuApp() {
   const [running, setRunning] = useState(false);
   const [notes, setNotes] = useState({});
   const [noteMode, setNoteMode] = useState(false);
+  const [excludeMode, setExcludeMode] = useState(false);
+  const [excluded, setExcluded] = useState({}); // { "r-c": Set of excluded numbers }
   const timerRef = useRef(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [hintsUsed, setHintsUsed] = useState(0);
   const [hintCells, setHintCells] = useState(new Set());
   const [hintFlash, setHintFlash] = useState(null);
   const [puzzlesCompleted, setPuzzlesCompleted] = useState(0);
+  const [usedJokes, setUsedJokes] = useState(new Set());
 
   const gridConfig = gridKey ? GRID_CONFIGS[gridKey] : null;
   const gridSize = gridConfig ? gridConfig.size : 9;
   const maxHintsNow = gridKey && difficulty ? HINT_MAP[gridKey][difficulty] : 3;
+
+  // Get a joke that hasn't been used yet
+  const getNewJoke = useCallback(() => {
+    const available = ALL_DAD_JOKES.filter((_, i) => !usedJokes.has(i));
+    if (available.length === 0) {
+      // All jokes used — reset and start over
+      setUsedJokes(new Set());
+      const idx = Math.floor(Math.random() * ALL_DAD_JOKES.length);
+      setUsedJokes(new Set([idx]));
+      return ALL_DAD_JOKES[idx];
+    }
+    const pick = Math.floor(Math.random() * available.length);
+    const originalIdx = ALL_DAD_JOKES.indexOf(available[pick]);
+    setUsedJokes(prev => new Set(prev).add(originalIdx));
+    return available[pick];
+  }, [usedJokes]);
 
   useEffect(() => {
     if (running) { timerRef.current = setInterval(() => setTime(t => t + 1), 1000); }
@@ -222,6 +390,7 @@ export default function SudokuApp() {
     p.forEach((row, r) => row.forEach((v, c) => { if (v !== 0) g.add(`${r}-${c}`); }));
     setGiven(g); setSelected(null); setErrors(new Set()); setCompleted(false);
     setJoke(""); setTime(0); setRunning(true); setNotes({}); setNoteMode(false);
+    setExcludeMode(false); setExcluded({});
     setShowConfetti(false); setHintsUsed(0); setHintCells(new Set()); setHintFlash(null);
     setScreen("game");
   }, []);
@@ -238,10 +407,10 @@ export default function SudokuApp() {
   const onComplete = useCallback((newBoard) => {
     if (checkComplete(newBoard)) {
       setCompleted(true); setRunning(false); setPuzzlesCompleted(p => p + 1);
-      setJoke(DAD_JOKES[Math.floor(Math.random() * DAD_JOKES.length)]);
+      setJoke(getNewJoke());
       setShowConfetti(true); setTimeout(() => setShowConfetti(false), 5000);
     }
-  }, [checkComplete]);
+  }, [checkComplete, getNewJoke]);
 
   const handleCell = (r, c) => { if (!completed) setSelected([r, c]); };
 
@@ -251,11 +420,26 @@ export default function SudokuApp() {
     if (given.has(`${r}-${c}`)) return;
     const newBoard = board.map(row => [...row]); newBoard[r][c] = num; setBoard(newBoard);
     setNotes(prev => { const copy = { ...prev }; delete copy[`${r}-${c}`]; return copy; });
+    setExcluded(prev => { const copy = { ...prev }; delete copy[`${r}-${c}`]; return copy; });
     const newErrors = new Set(errors);
     if (num !== solution[r][c]) newErrors.add(`${r}-${c}`); else newErrors.delete(`${r}-${c}`);
     setErrors(newErrors);
     onComplete(newBoard);
   }, [selected, completed, given, board, solution, errors, onComplete, gridSize]);
+
+  const handleExclude = useCallback((num) => {
+    if (!selected || completed) return;
+    const [r, c] = selected;
+    if (given.has(`${r}-${c}`) || board[r][c] !== 0) return;
+    const key = `${r}-${c}`;
+    setExcluded(prev => {
+      const copy = { ...prev };
+      const current = new Set(copy[key] || []);
+      if (current.has(num)) current.delete(num); else current.add(num);
+      if (current.size === 0) delete copy[key]; else copy[key] = current;
+      return copy;
+    });
+  }, [selected, completed, given, board]);
 
   const handleErase = useCallback(() => {
     if (!selected || completed) return;
@@ -263,6 +447,7 @@ export default function SudokuApp() {
     const newBoard = board.map(row => [...row]); newBoard[r][c] = 0; setBoard(newBoard);
     const newErrors = new Set(errors); newErrors.delete(`${r}-${c}`); setErrors(newErrors);
     setNotes(prev => { const copy = { ...prev }; delete copy[`${r}-${c}`]; return copy; });
+    setExcluded(prev => { const copy = { ...prev }; delete copy[`${r}-${c}`]; return copy; });
   }, [selected, completed, given, board, errors]);
 
   const handleHint = useCallback(() => {
@@ -285,6 +470,7 @@ export default function SudokuApp() {
     newBoard[targetR][targetC] = solution[targetR][targetC]; setBoard(newBoard);
     const key = `${targetR}-${targetC}`;
     setNotes(prev => { const copy = { ...prev }; delete copy[key]; return copy; });
+    setExcluded(prev => { const copy = { ...prev }; delete copy[key]; return copy; });
     const newErrors = new Set(errors); newErrors.delete(key); setErrors(newErrors);
     setHintCells(prev => new Set(prev).add(key)); setHintsUsed(h => h + 1);
     setSelected([targetR, targetC]); setHintFlash(key); setTimeout(() => setHintFlash(null), 800);
@@ -295,9 +481,12 @@ export default function SudokuApp() {
     if (!board) return;
     const handler = (e) => {
       const num = parseInt(e.key);
-      if (num >= 1 && num <= gridSize) handleNumber(num);
+      if (num >= 1 && num <= gridSize) {
+        if (excludeMode) handleExclude(num); else handleNumber(num);
+      }
       if (e.key === "Backspace" || e.key === "Delete") handleErase();
       if (e.key === "n" || e.key === "N") setNoteMode(m => !m);
+      if (e.key === "x" || e.key === "X") setExcludeMode(m => !m);
       if (e.key === "h" || e.key === "H") handleHint();
       if (selected) {
         const [r, c] = selected;
@@ -309,9 +498,9 @@ export default function SudokuApp() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [board, handleNumber, handleErase, handleHint, selected, gridSize]);
+  }, [board, handleNumber, handleExclude, handleErase, handleHint, selected, gridSize, excludeMode]);
 
-  // ========== MENU: Choose grid size ==========
+  // ========== MENU ==========
   if (screen === "menu") {
     return (
       <div style={BG}>
@@ -349,7 +538,7 @@ export default function SudokuApp() {
     );
   }
 
-  // ========== DIFFICULTY SELECT ==========
+  // ========== DIFFICULTY ==========
   if (screen === "difficulty") {
     const cfg = GRID_CONFIGS[gridKey];
     return (
@@ -392,7 +581,12 @@ export default function SudokuApp() {
   const noteGridCols = boxCols;
   const maxBoardWidth = gridSize <= 4 ? 300 : gridSize <= 6 ? 360 : 420;
 
-  // Auto-calculate candidates for empty cells
+  // Split numbers: first half above grid, second half below
+  const splitAt = Math.ceil(gridSize / 2);
+  const topNums = nums.slice(0, splitAt);
+  const bottomNums = nums.slice(splitAt);
+
+  // Auto-calculate candidates
   const getCandidates = (r, c) => {
     if (board[r][c] !== 0) return new Set();
     const used = new Set();
@@ -406,7 +600,8 @@ export default function SudokuApp() {
       for (let j = bc; j < bc + boxCols; j++)
         if (board[i][j] !== 0) used.add(board[i][j]);
     const candidates = new Set();
-    for (let n = 1; n <= gridSize; n++) if (!used.has(n)) candidates.add(n);
+    const cellExcluded = excluded[`${r}-${c}`] || new Set();
+    for (let n = 1; n <= gridSize; n++) if (!used.has(n) && !cellExcluded.has(n)) candidates.add(n);
     return candidates;
   };
 
@@ -431,6 +626,13 @@ export default function SudokuApp() {
         </div>
       </div>
 
+      {/* Top number pad */}
+      {!completed && (
+        <div style={{ width: `min(100%, ${maxBoardWidth}px)`, marginBottom: 10, position: "relative", zIndex: 1 }}>
+          <NumRow numbers={topNums} board={board} gridSize={gridSize} handleNumber={handleNumber} excludeMode={excludeMode} selected={selected} excluded={excluded} handleExclude={handleExclude} />
+        </div>
+      )}
+
       {/* Board */}
       <div style={{
         display: "grid", gridTemplateColumns: `repeat(${gridSize}, 1fr)`,
@@ -452,6 +654,8 @@ export default function SudokuApp() {
           const displayNotes = val === 0 ? (manualNotes || autoCandidates) : null;
           const isHint = hintCells.has(`${r}-${c}`);
           const isFlashing = hintFlash === `${r}-${c}`;
+          const cellExcluded = excluded[`${r}-${c}`];
+          const hasExclusions = val === 0 && cellExcluded && cellExcluded.size > 0;
           const cellFontSize = gridSize <= 4 ? "clamp(22px, 7vw, 34px)" : gridSize <= 6 ? "clamp(18px, 5.5vw, 28px)" : "clamp(16px, 4.5vw, 24px)";
 
           return (
@@ -468,9 +672,16 @@ export default function SudokuApp() {
             }}>
               {displayNotes ? (
                 <div style={{ display: "grid", gridTemplateColumns: `repeat(${noteGridCols}, 1fr)`, width: "85%", height: "85%", alignItems: "center", justifyItems: "center" }}>
-                  {nums.map(n => (
-                    <span key={n} style={{ fontSize: gridSize <= 4 ? "clamp(9px, 2.5vw, 13px)" : gridSize <= 6 ? "clamp(8px, 2vw, 11px)" : "clamp(7px, 1.8vw, 10px)", color: displayNotes.has(n) ? (autoCandidates && !manualNotes ? COLORS.textDim + "99" : COLORS.textDim) : "transparent", lineHeight: 1 }}>{n}</span>
-                  ))}
+                  {nums.map(n => {
+                    const isCandidate = displayNotes.has(n);
+                    return (
+                      <span key={n} style={{
+                        fontSize: gridSize <= 4 ? "clamp(9px, 2.5vw, 13px)" : gridSize <= 6 ? "clamp(8px, 2vw, 11px)" : "clamp(7px, 1.8vw, 10px)",
+                        color: isCandidate ? (autoCandidates && !manualNotes ? COLORS.textDim + "99" : COLORS.textDim) : "transparent",
+                        lineHeight: 1,
+                      }}>{n}</span>
+                    );
+                  })}
                 </div>
               ) : val !== 0 ? val : ""}
             </div>
@@ -480,26 +691,18 @@ export default function SudokuApp() {
 
       {/* Controls */}
       {!completed && (
-        <div style={{ animation: "fadeUp 0.6s ease 0.2s both", width: `min(100%, ${maxBoardWidth}px)`, marginTop: 20, position: "relative", zIndex: 1 }}>
-          <div style={{ display: "flex", justifyContent: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-            <button className="tool-btn" onClick={handleErase} style={{ background: COLORS.surface, border: "none", color: COLORS.textDim, fontFamily: "'Source Sans 3', sans-serif", fontSize: 13, padding: "8px 18px", borderRadius: 10 }}>Erase</button>
-            <button className="tool-btn" onClick={() => setNoteMode(m => !m)} style={{ background: noteMode ? COLORS.accentSoft : COLORS.surface, border: noteMode ? `1px solid ${COLORS.accent}` : "none", color: noteMode ? COLORS.accent : COLORS.textDim, fontFamily: "'Source Sans 3', sans-serif", fontSize: 13, padding: "8px 18px", borderRadius: 10 }}>Notes {noteMode ? "ON" : "OFF"}</button>
-            <button className="tool-btn" onClick={handleHint} disabled={hintsUsed >= maxHintsNow} style={{ background: hintsUsed >= maxHintsNow ? `${COLORS.surface}88` : COLORS.surface, border: "none", color: hintsUsed >= maxHintsNow ? `${COLORS.textDim}44` : COLORS.correct, fontFamily: "'Source Sans 3', sans-serif", fontSize: 13, padding: "8px 18px", borderRadius: 10, opacity: hintsUsed >= maxHintsNow ? 0.5 : 1 }}>Hint ({maxHintsNow - hintsUsed})</button>
+        <div style={{ animation: "fadeUp 0.6s ease 0.2s both", width: `min(100%, ${maxBoardWidth}px)`, marginTop: 10, position: "relative", zIndex: 1 }}>
+          {/* Bottom number pad */}
+          <div style={{ marginBottom: 14 }}>
+            <NumRow numbers={bottomNums} board={board} gridSize={gridSize} handleNumber={handleNumber} excludeMode={excludeMode} selected={selected} excluded={excluded} handleExclude={handleExclude} />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(gridSize, 9)}, 1fr)`, gap: 6 }}>
-            {nums.map(n => {
-              const count = board.flat().filter(v => v === n).length;
-              const allPlaced = count >= gridSize;
-              return (
-                <button key={n} className="num-btn" onClick={() => handleNumber(n)} disabled={allPlaced} style={{
-                  aspectRatio: "1", borderRadius: 12, background: allPlaced ? `${COLORS.surface}88` : COLORS.surface,
-                  color: allPlaced ? COLORS.textDim + "44" : COLORS.text,
-                  fontFamily: "'Playfair Display', Georgia, serif",
-                  fontSize: gridSize <= 4 ? "clamp(22px, 7vw, 30px)" : gridSize <= 6 ? "clamp(20px, 5.5vw, 28px)" : "clamp(18px, 5vw, 26px)",
-                  fontWeight: 700, opacity: allPlaced ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center",
-                }}>{n}</button>
-              );
-            })}
+
+          {/* Tool buttons */}
+          <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
+            <button className="tool-btn" onClick={handleErase} style={{ background: COLORS.surface, border: "none", color: COLORS.textDim, fontFamily: "'Source Sans 3', sans-serif", fontSize: 13, padding: "8px 16px", borderRadius: 10 }}>Erase</button>
+            <button className="tool-btn" onClick={() => setNoteMode(m => !m)} style={{ background: noteMode ? COLORS.accentSoft : COLORS.surface, border: noteMode ? `1px solid ${COLORS.accent}` : "none", color: noteMode ? COLORS.accent : COLORS.textDim, fontFamily: "'Source Sans 3', sans-serif", fontSize: 13, padding: "8px 16px", borderRadius: 10 }}>Notes {noteMode ? "ON" : "OFF"}</button>
+            <button className="tool-btn" onClick={() => setExcludeMode(m => !m)} style={{ background: excludeMode ? "rgba(212,99,122,0.2)" : COLORS.surface, border: excludeMode ? `1px solid ${COLORS.accent}` : "none", color: excludeMode ? COLORS.error : COLORS.textDim, fontFamily: "'Source Sans 3', sans-serif", fontSize: 13, padding: "8px 16px", borderRadius: 10 }}>Remove {excludeMode ? "ON" : "OFF"}</button>
+            <button className="tool-btn" onClick={handleHint} disabled={hintsUsed >= maxHintsNow} style={{ background: hintsUsed >= maxHintsNow ? `${COLORS.surface}88` : COLORS.surface, border: "none", color: hintsUsed >= maxHintsNow ? `${COLORS.textDim}44` : COLORS.correct, fontFamily: "'Source Sans 3', sans-serif", fontSize: 13, padding: "8px 16px", borderRadius: 10, opacity: hintsUsed >= maxHintsNow ? 0.5 : 1 }}>Hint ({maxHintsNow - hintsUsed})</button>
           </div>
         </div>
       )}
