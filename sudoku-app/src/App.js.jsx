@@ -7,6 +7,31 @@ const FALLBACK_JOKES = [
   "Why did the scarecrow win an award? He was outstanding in his field.",
   "I'm reading a book about anti-gravity. It's impossible to put down.",
   "What do you call cheese that isn't yours? Nacho cheese.",
+  "I told my wife she was drawing her eyebrows too high. She looked surprised.",
+  "Why don't eggs tell jokes? They'd crack each other up.",
+  "Why couldn't the bicycle stand up by itself? It was two tired.",
+  "What did the ocean say to the shore? Nothing, it just waved.",
+  "I told a chemistry joke. There was no reaction.",
+  "What do you call a bear with no teeth? A gummy bear.",
+  "I'm on a seafood diet. I see food and I eat it.",
+  "Why did the math book look so sad? Because it had too many problems.",
+  "I don't trust stairs. They're always up to something.",
+  "What did the buffalo say when his kid left for school? Bison.",
+  "How do you organize a space party? You planet.",
+  "I tried to catch some fog. I mist.",
+  "What do you call a lazy kangaroo? A pouch potato.",
+  "Why did the stadium get hot? All the fans left.",
+  "What did one wall say to the other? I'll meet you at the corner.",
+  "How does Moses make his coffee? Hebrews it.",
+  "Why did the mushroom go to the party? Because he was a fungi.",
+  "What do you call birds that stick together? Velcrows.",
+  "I was going to tell a joke about paper, but it's tearable.",
+  "What's a pirate's favorite letter? You'd think it's R, but it's the C.",
+  "Why did the belt get arrested? For holding up a pair of pants.",
+  "What do sprinters eat before a race? Nothing, they fast.",
+  "Why did the coffee file a police report? It got mugged.",
+  "What do you call a sleeping bull? A bulldozer.",
+  "I used to be a banker, but I lost interest.",
 ];
 
 const GRID_CONFIGS = {
@@ -262,41 +287,75 @@ export default function SudokuApp() {
   const [puzzlesCompleted, setPuzzlesCompleted] = useState(0);
   const [usedJokes, setUsedJokes] = useState([]);
   const [jokeLoading, setJokeLoading] = useState(false);
+  const fallbackIndexRef = useRef(0);
 
   const gridConfig = gridKey ? GRID_CONFIGS[gridKey] : null;
   const gridSize = gridConfig ? gridConfig.size : 9;
   const maxHintsNow = gridKey && difficulty ? HINT_MAP[gridKey][difficulty] : 3;
 
-  // Generate a fresh joke/pun/funny thing using Claude API
+  // Shuffle fallbacks once on load
+  const shuffledFallbacks = useRef(
+    [...FALLBACK_JOKES].sort(() => Math.random() - 0.5)
+  );
+
+  // Generate a fresh joke using Claude API
   const fetchNewJoke = useCallback(async () => {
     setJokeLoading(true);
     try {
-      const previousList = usedJokes.slice(-20).map((j, i) => `${i + 1}. ${j}`).join("\n");
-      const prompt = previousList.length > 0
-        ? `You are a comedy writer for a sudoku game. Generate ONE short, funny thing for the player "Bubba" who just completed a puzzle. It can be a dad joke, a pun, a one-liner, a funny observation, a silly story (2-3 sentences max), or a witty quip. Be creative and vary the format! Keep it family-friendly and under 40 words.\n\nDo NOT repeat or rephrase any of these previous jokes:\n${previousList}\n\nRespond with ONLY the joke text, nothing else.`
-        : `You are a comedy writer for a sudoku game. Generate ONE short, funny thing for the player "Bubba" who just completed a puzzle. It can be a dad joke, a pun, a one-liner, a funny observation, a silly story (2-3 sentences max), or a witty quip. Be creative! Keep it family-friendly and under 40 words.\n\nRespond with ONLY the joke text, nothing else.`;
+      const categories = [
+        "a dad joke with a pun punchline",
+        "a funny one-liner observation about everyday life",
+        "a silly 2-sentence story with a twist ending",
+        "a punny joke about animals",
+        "a groan-worthy pun about food",
+        "a funny fake fact that sounds real",
+        "a witty joke about technology",
+        "a corny joke about sports or exercise",
+        "a ridiculous knock-knock joke",
+        "a funny fortune cookie message that's absurd",
+        "a joke about being bad at math or puzzles",
+        "a silly workplace or school joke",
+        "a pun about nature or weather",
+        "a funny quote from a fictional wise person",
+        "a absurd Would You Rather scenario (just the scenario, make it funny)",
+        "a joke about getting older",
+        "a funny misunderstanding between two people (2-3 sentences)",
+        "a pun about music or movies",
+        "a silly fun fact that's actually made up",
+        "a joke about procrastination or laziness",
+      ];
+      const category = categories[Math.floor(Math.random() * categories.length)];
+      const seed = Math.floor(Math.random() * 999999);
+
+      const previousList = usedJokes.slice(-15).map((j, i) => `${i + 1}. ${j}`).join("\n");
+      const avoidSection = previousList.length > 0
+        ? `\n\nThese jokes were already used — create something COMPLETELY different in topic, structure, and punchline:\n${previousList}`
+        : "";
+
+      const prompt = `Random seed: ${seed}\n\nYou're writing comedy for a sudoku game. The player "Bubba" just finished a puzzle. Write ${category}.\n\nRules:\n- MUST be original and unique\n- Keep it family-friendly\n- Under 35 words\n- NO setup like "Here's a joke" — just the joke itself\n- Be genuinely funny, not generic${avoidSection}\n\nRespond with ONLY the joke/funny thing. Nothing else.`;
 
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
+          max_tokens: 150,
           messages: [{ role: "user", content: prompt }],
         }),
       });
       const data = await response.json();
-      const jokeText = data.content?.[0]?.text?.trim();
-      if (jokeText) {
+      const jokeText = data.content?.[0]?.text?.trim().replace(/^["']|["']$/g, '');
+      if (jokeText && jokeText.length > 5) {
         setJoke(jokeText);
         setUsedJokes(prev => [...prev, jokeText]);
       } else {
-        throw new Error("No joke returned");
+        throw new Error("Bad response");
       }
     } catch (err) {
-      // Fallback to a random one from the small list
-      const fallback = FALLBACK_JOKES[Math.floor(Math.random() * FALLBACK_JOKES.length)];
-      setJoke(fallback);
+      // Cycle through shuffled fallbacks so we don't repeat
+      const idx = fallbackIndexRef.current % shuffledFallbacks.current.length;
+      setJoke(shuffledFallbacks.current[idx]);
+      fallbackIndexRef.current++;
     }
     setJokeLoading(false);
   }, [usedJokes]);
