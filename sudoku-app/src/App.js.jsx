@@ -1,107 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
-// Massive joke pool — we track used ones and never repeat
-const ALL_DAD_JOKES = [
+// Small fallback list in case API is unavailable
+const FALLBACK_JOKES = [
   "Why did the sudoku puzzle go to therapy? It had too many issues to work through.",
-  "I told my wife she was drawing her eyebrows too high. She looked surprised.",
   "What do you call a fake noodle? An impasta.",
-  "Why don't eggs tell jokes? They'd crack each other up.",
-  "I'm reading a book about anti-gravity. It's impossible to put down.",
   "Why did the scarecrow win an award? He was outstanding in his field.",
+  "I'm reading a book about anti-gravity. It's impossible to put down.",
   "What do you call cheese that isn't yours? Nacho cheese.",
-  "Why couldn't the bicycle stand up by itself? It was two tired.",
-  "I used to hate facial hair, but then it grew on me.",
-  "What did the ocean say to the shore? Nothing, it just waved.",
-  "Why do programmers prefer dark mode? Because light attracts bugs.",
-  "I told a chemistry joke. There was no reaction.",
-  "What do you call a bear with no teeth? A gummy bear.",
-  "Why don't scientists trust atoms? Because they make up everything.",
-  "I'm on a seafood diet. I see food and I eat it.",
-  "What did the janitor say when he jumped out of the closet? Supplies!",
-  "Why did the math book look so sad? Because it had too many problems.",
-  "What do you call a sleeping dinosaur? A dino-snore.",
-  "I would tell you a joke about pizza, but it's too cheesy.",
-  "Why did the golfer bring two pairs of pants? In case he got a hole in one.",
-  "What do you call a dog that does magic? A Labracadabrador.",
-  "I used to play piano by ear, but now I use my hands.",
-  "Why did the coffee file a police report? It got mugged.",
-  "What did one wall say to the other? I'll meet you at the corner.",
-  "How do you organize a space party? You planet.",
-  "Why don't skeletons fight each other? They don't have the guts.",
-  "What do you call a fish without eyes? A fsh.",
-  "I asked my dog what two minus two is. He said nothing.",
-  "What do you get when you cross a snowman with a vampire? Frostbite.",
-  "Why did the bicycle fall over? Because it was two tired.",
-  "What's orange and sounds like a parrot? A carrot.",
-  "I got hit in the head with a can of soda. Luckily it was a soft drink.",
-  "Why do cows wear bells? Because their horns don't work.",
-  "What did the grape do when it got stepped on? It let out a little wine.",
-  "How does a penguin build its house? Igloos it together.",
-  "I tried to catch some fog. I mist.",
-  "Why can't your nose be 12 inches long? Because then it'd be a foot.",
-  "What do you call a can opener that doesn't work? A can't opener.",
-  "How do you make a tissue dance? Put a little boogie in it.",
-  "I don't trust stairs. They're always up to something.",
-  "What did the buffalo say when his kid left for school? Bison.",
-  "Want to hear a joke about construction? I'm still working on it.",
-  "What do you call a lazy kangaroo? A pouch potato.",
-  "Why did the man fall down the well? Because he couldn't see that well.",
-  "What do sprinters eat before a race? Nothing, they fast.",
-  "What do you call an alligator in a vest? An investigator.",
-  "I only know 25 letters of the alphabet. I don't know Y.",
-  "Why did the stadium get hot? All the fans left.",
-  "What do you call a factory that makes okay products? A satisfactory.",
-  "Why did the tomato turn red? Because it saw the salad dressing.",
-  "What did one plate say to another? Dinner's on me.",
-  "How do celebrities stay cool? They have lots of fans.",
-  "Why couldn't the leopard play hide and seek? Because he was always spotted.",
-  "What do you call a boomerang that doesn't come back? A stick.",
-  "I'm terrified of elevators, so I'm going to start taking steps to avoid them.",
-  "Why don't oysters share? Because they're shellfish.",
-  "What do you call a sleeping bull? A bulldozer.",
-  "How does Moses make his coffee? Hebrews it.",
-  "Why did the chicken go to the seance? To get to the other side.",
-  "I used to be a banker, but I lost interest.",
-  "What kind of shoes do ninjas wear? Sneakers.",
-  "Why don't scientists trust atoms? They make up everything.",
-  "I told my wife she was overreacting. She just rolled her eyes and knocked over the Christmas tree.",
-  "What do dentists call their x-rays? Tooth pics.",
-  "Why did the invisible man turn down the job offer? He couldn't see himself doing it.",
-  "What did the left eye say to the right eye? Between us, something smells.",
-  "Why can't you hear a pterodactyl going to the bathroom? Because the p is silent.",
-  "What do you call a train carrying bubble gum? A chew-chew train.",
-  "Why did the belt get arrested? For holding up a pair of pants.",
-  "What do you call birds that stick together? Velcrows.",
-  "I used to hate math, but then I realized decimals have a point.",
-  "What's a pirate's favorite letter? You'd think it's R, but it's the C.",
-  "How do you make an octopus laugh? With ten-tickles.",
-  "Why did the painting go to jail? Because it was framed.",
-  "What do elves learn in school? The elf-abet.",
-  "Why did the mushroom go to the party? Because he was a fungi.",
-  "I have a joke about time travel, but you didn't like it.",
-  "What do clouds wear under their shorts? Thunderpants.",
-  "Why don't eggs tell each other secrets? They'd crack under pressure.",
-  "What did the fish say when it hit the wall? Dam.",
-  "How do trees access the internet? They log in.",
-  "What kind of music do mummies listen to? Wrap music.",
-  "Why did the gym close down? It just didn't work out.",
-  "What do you call a dinosaur that crashes their car? Tyrannosaurus Wrecks.",
-  "I was going to tell a joke about paper, but it's tearable.",
-  "What did the hat say to the scarf? You hang around, I'll go on ahead.",
-  "Why couldn't the pirate play cards? Because he was standing on the deck.",
-  "What do you call a pig that does karate? A pork chop.",
-  "I went to buy camouflage trousers but I couldn't find any.",
-  "How do you follow Will Smith in the snow? You follow the fresh prints.",
-  "Why did the old man fall in the well? Because he couldn't see that well.",
-  "What do you call a funny mountain? Hill-arious.",
-  "Why couldn't the sesame seed leave the casino? He was on a roll.",
-  "I'm reading a horror story in braille. Something bad is about to happen, I can feel it.",
-  "What's the best thing about Switzerland? I don't know, but the flag is a big plus.",
-  "Why did the student eat his homework? Because the teacher told him it was a piece of cake.",
-  "I tried to write a song about tortillas. Actually, it's more of a wrap.",
-  "Why do seagulls fly over the sea? Because if they flew over the bay, they'd be bagels.",
-  "What do you call a deer with no eyes? No-eye-deer.",
-  "I wouldn't buy anything with velcro. It's a total rip-off.",
 ];
 
 const GRID_CONFIGS = {
@@ -355,26 +260,45 @@ export default function SudokuApp() {
   const [hintCells, setHintCells] = useState(new Set());
   const [hintFlash, setHintFlash] = useState(null);
   const [puzzlesCompleted, setPuzzlesCompleted] = useState(0);
-  const [usedJokes, setUsedJokes] = useState(new Set());
+  const [usedJokes, setUsedJokes] = useState([]);
+  const [jokeLoading, setJokeLoading] = useState(false);
 
   const gridConfig = gridKey ? GRID_CONFIGS[gridKey] : null;
   const gridSize = gridConfig ? gridConfig.size : 9;
   const maxHintsNow = gridKey && difficulty ? HINT_MAP[gridKey][difficulty] : 3;
 
-  // Get a joke that hasn't been used yet
-  const getNewJoke = useCallback(() => {
-    const available = ALL_DAD_JOKES.filter((_, i) => !usedJokes.has(i));
-    if (available.length === 0) {
-      // All jokes used — reset and start over
-      setUsedJokes(new Set());
-      const idx = Math.floor(Math.random() * ALL_DAD_JOKES.length);
-      setUsedJokes(new Set([idx]));
-      return ALL_DAD_JOKES[idx];
+  // Generate a fresh joke/pun/funny thing using Claude API
+  const fetchNewJoke = useCallback(async () => {
+    setJokeLoading(true);
+    try {
+      const previousList = usedJokes.slice(-20).map((j, i) => `${i + 1}. ${j}`).join("\n");
+      const prompt = previousList.length > 0
+        ? `You are a comedy writer for a sudoku game. Generate ONE short, funny thing for the player "Bubba" who just completed a puzzle. It can be a dad joke, a pun, a one-liner, a funny observation, a silly story (2-3 sentences max), or a witty quip. Be creative and vary the format! Keep it family-friendly and under 40 words.\n\nDo NOT repeat or rephrase any of these previous jokes:\n${previousList}\n\nRespond with ONLY the joke text, nothing else.`
+        : `You are a comedy writer for a sudoku game. Generate ONE short, funny thing for the player "Bubba" who just completed a puzzle. It can be a dad joke, a pun, a one-liner, a funny observation, a silly story (2-3 sentences max), or a witty quip. Be creative! Keep it family-friendly and under 40 words.\n\nRespond with ONLY the joke text, nothing else.`;
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+      const data = await response.json();
+      const jokeText = data.content?.[0]?.text?.trim();
+      if (jokeText) {
+        setJoke(jokeText);
+        setUsedJokes(prev => [...prev, jokeText]);
+      } else {
+        throw new Error("No joke returned");
+      }
+    } catch (err) {
+      // Fallback to a random one from the small list
+      const fallback = FALLBACK_JOKES[Math.floor(Math.random() * FALLBACK_JOKES.length)];
+      setJoke(fallback);
     }
-    const pick = Math.floor(Math.random() * available.length);
-    const originalIdx = ALL_DAD_JOKES.indexOf(available[pick]);
-    setUsedJokes(prev => new Set(prev).add(originalIdx));
-    return available[pick];
+    setJokeLoading(false);
   }, [usedJokes]);
 
   useEffect(() => {
@@ -407,10 +331,10 @@ export default function SudokuApp() {
   const onComplete = useCallback((newBoard) => {
     if (checkComplete(newBoard)) {
       setCompleted(true); setRunning(false); setPuzzlesCompleted(p => p + 1);
-      setJoke(getNewJoke());
+      fetchNewJoke();
       setShowConfetti(true); setTimeout(() => setShowConfetti(false), 5000);
     }
-  }, [checkComplete, getNewJoke]);
+  }, [checkComplete, fetchNewJoke]);
 
   const handleCell = (r, c) => { if (!completed) setSelected([r, c]); };
 
@@ -716,7 +640,9 @@ export default function SudokuApp() {
           <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.gold}33`, borderRadius: 20, padding: "28px 24px", position: "relative", overflow: "hidden" }}>
             <div style={{ position: "absolute", top: -20, right: -20, width: 80, height: 80, background: `radial-gradient(circle, ${COLORS.gold}15, transparent)`, borderRadius: "50%" }} />
             <div style={{ fontSize: 11, letterSpacing: 5, textTransform: "uppercase", color: COLORS.gold, fontFamily: "'Source Sans 3', sans-serif", fontWeight: 600, marginBottom: 14 }}>Bubba's Dad Joke Prize</div>
-            <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 18, lineHeight: 1.6, color: COLORS.text, fontStyle: "italic" }}>"{joke}"</div>
+            <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 18, lineHeight: 1.6, color: COLORS.text, fontStyle: "italic" }}>
+              {jokeLoading ? "Cooking up something funny..." : `"${joke}"`}
+            </div>
           </div>
           <button className="diff-btn" onClick={() => startGame(gridKey, difficulty)} style={{ marginTop: 24, background: COLORS.accent, border: "none", color: "#fff", fontFamily: "'Source Sans 3', sans-serif", fontSize: 15, fontWeight: 600, padding: "14px 36px", borderRadius: 14, cursor: "pointer" }}>Next Puzzle →</button>
           <button className="tool-btn" onClick={goToMenu} style={{ marginTop: 12, background: "transparent", border: "none", color: COLORS.textDim, fontFamily: "'Source Sans 3', sans-serif", fontSize: 13, padding: "8px 20px", borderRadius: 10, cursor: "pointer", display: "block", marginLeft: "auto", marginRight: "auto" }}>Change Size / Difficulty</button>
