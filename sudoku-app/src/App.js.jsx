@@ -317,22 +317,33 @@ export default function SudokuApp() {
         "a silly workplace or school joke",
         "a pun about nature or weather",
         "a funny quote from a fictional wise person",
-        "a absurd Would You Rather scenario (just the scenario, make it funny)",
+        "an absurd Would You Rather scenario (just the scenario, make it funny)",
         "a joke about getting older",
         "a funny misunderstanding between two people (2-3 sentences)",
         "a pun about music or movies",
-        "a silly fun fact that's actually made up",
+        "a silly made-up fun fact",
         "a joke about procrastination or laziness",
+        "an inspirational quote that's secretly hilarious or absurd",
+        "a motivational message that takes a funny unexpected turn",
+        "a deep-sounding philosophical quote that's actually about something silly like snacks",
+        "a wholesome but funny compliment for someone named Bubba",
+        "a short funny horoscope prediction",
+        "a fake movie review that's ridiculous",
+        "a silly warning label for an everyday object",
+        "a funny autocorrect fail story (2 sentences)",
+        "a joke in the style of Mitch Hedberg (deadpan one-liner)",
+        "a punny pickup line that's so bad it's good",
       ];
       const category = categories[Math.floor(Math.random() * categories.length)];
       const seed = Math.floor(Math.random() * 999999);
+      const timestamp = Date.now();
 
-      const previousList = usedJokes.slice(-15).map((j, i) => `${i + 1}. ${j}`).join("\n");
+      const previousList = usedJokes.slice(-20).map((j, i) => `${i + 1}. ${j}`).join("\n");
       const avoidSection = previousList.length > 0
-        ? `\n\nThese jokes were already used — create something COMPLETELY different in topic, structure, and punchline:\n${previousList}`
+        ? `\n\nCRITICAL — These have ALL been used already. You MUST create something COMPLETELY different — different topic, different structure, different punchline. Do NOT rephrase, remix, or reword any of these:\n${previousList}`
         : "";
 
-      const prompt = `Random seed: ${seed}\n\nYou're writing comedy for a sudoku game. The player "Bubba" just finished a puzzle. Write ${category}.\n\nRules:\n- MUST be original and unique\n- Keep it family-friendly\n- Under 35 words\n- NO setup like "Here's a joke" — just the joke itself\n- Be genuinely funny, not generic${avoidSection}\n\nRespond with ONLY the joke/funny thing. Nothing else.`;
+      const prompt = `Seed: ${seed}-${timestamp}\n\nYou're a comedy writer for a sudoku game. Player "Bubba" just finished a puzzle. Write ${category}.\n\nRules:\n- MUST be 100% original — never seen before\n- Family-friendly, under 35 words\n- NO setup like "Here's a joke" — just the content itself\n- Be genuinely funny, surprising, and creative\n- If you can't think of something funny, write a genuinely inspiring or uplifting quote instead — but make it feel fresh and personal, not cliché${avoidSection}\n\nRespond with ONLY the joke/quote. Nothing else. No quotation marks.`;
 
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -564,8 +575,8 @@ export default function SudokuApp() {
   const noteGridCols = boxCols;
   const maxBoardWidth = gridSize <= 4 ? 300 : gridSize <= 6 ? 360 : 420;
 
-  // Split numbers: first half above grid, second half below
-  const splitAt = Math.ceil(gridSize / 2);
+  // Split numbers: row 1 = 1-5, row 2 = 6-9 (for 9x9)
+  const splitAt = gridSize <= 4 ? 2 : gridSize <= 6 ? 3 : 5;
   const topNums = nums.slice(0, splitAt);
   const bottomNums = nums.slice(splitAt);
 
@@ -608,13 +619,6 @@ export default function SudokuApp() {
           <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 15, color: COLORS.textDim, minWidth: 48, textAlign: "right" }}>{formatTime(time)}</div>
         </div>
       </div>
-
-      {/* Top number pad */}
-      {!completed && (
-        <div style={{ width: `min(100%, ${maxBoardWidth}px)`, marginBottom: 10, position: "relative", zIndex: 1 }}>
-          <NumRow numbers={topNums} board={board} gridSize={gridSize} handleNumber={handleNumber} excludeMode={excludeMode} selected={selected} excluded={excluded} handleExclude={handleExclude} />
-        </div>
-      )}
 
       {/* Board */}
       <div style={{
@@ -674,16 +678,47 @@ export default function SudokuApp() {
 
       {/* Controls */}
       {!completed && (
-        <div style={{ animation: "fadeUp 0.6s ease 0.2s both", width: `min(100%, ${maxBoardWidth}px)`, marginTop: 10, position: "relative", zIndex: 1 }}>
-          {/* Bottom number pad */}
-          <div style={{ marginBottom: 14 }}>
-            <NumRow numbers={bottomNums} board={board} gridSize={gridSize} handleNumber={handleNumber} excludeMode={excludeMode} selected={selected} excluded={excluded} handleExclude={handleExclude} />
+        <div style={{ animation: "fadeUp 0.6s ease 0.2s both", width: `min(100%, ${maxBoardWidth}px)`, marginTop: 12, position: "relative", zIndex: 1 }}>
+          {/* Row 1: first numbers */}
+          <div style={{ marginBottom: 6 }}>
+            <NumRow numbers={topNums} board={board} gridSize={gridSize} handleNumber={handleNumber} excludeMode={excludeMode} selected={selected} excluded={excluded} handleExclude={handleExclude} />
+          </div>
+
+          {/* Row 2: remaining numbers + Notes toggle */}
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${bottomNums.length + 1}, 1fr)`, gap: 6, width: "100%", marginBottom: 14 }}>
+            {bottomNums.map(n => {
+              const count = board.flat().filter(v => v === n).length;
+              const allPlaced = count >= gridSize;
+              const isExcludedForCell = excludeMode && selected && excluded[`${selected[0]}-${selected[1]}`]?.has(n);
+              return (
+                <button key={n} className="num-btn" onClick={() => excludeMode ? handleExclude(n) : handleNumber(n)} disabled={!excludeMode && allPlaced} style={{
+                  aspectRatio: "1", borderRadius: 12,
+                  background: isExcludedForCell ? COLORS.accentSoft : allPlaced && !excludeMode ? `${COLORS.surface}88` : COLORS.surface,
+                  color: isExcludedForCell ? COLORS.accent : allPlaced && !excludeMode ? COLORS.textDim + "44" : COLORS.text,
+                  fontFamily: "'Playfair Display', Georgia, serif",
+                  fontSize: gridSize <= 4 ? "clamp(22px, 7vw, 30px)" : gridSize <= 6 ? "clamp(20px, 5.5vw, 28px)" : "clamp(18px, 5vw, 26px)",
+                  fontWeight: 700, opacity: allPlaced && !excludeMode ? 0.4 : 1,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>{n}</button>
+              );
+            })}
+            {/* Notes toggle inline */}
+            <button className="num-btn" onClick={() => setNoteMode(m => !m)} style={{
+              aspectRatio: "1", borderRadius: 12,
+              background: noteMode ? COLORS.accentSoft : COLORS.surface,
+              border: noteMode ? `1px solid ${COLORS.accent}` : "none",
+              color: noteMode ? COLORS.accent : COLORS.textDim,
+              fontFamily: "'Source Sans 3', sans-serif",
+              fontSize: "clamp(10px, 2.8vw, 13px)",
+              fontWeight: 600,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              lineHeight: 1.2,
+            }}>{noteMode ? "Notes\nON" : "Notes\nOFF"}</button>
           </div>
 
           {/* Tool buttons */}
           <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
             <button className="tool-btn" onClick={handleErase} style={{ background: COLORS.surface, border: "none", color: COLORS.textDim, fontFamily: "'Source Sans 3', sans-serif", fontSize: 13, padding: "8px 16px", borderRadius: 10 }}>Erase</button>
-            <button className="tool-btn" onClick={() => setNoteMode(m => !m)} style={{ background: noteMode ? COLORS.accentSoft : COLORS.surface, border: noteMode ? `1px solid ${COLORS.accent}` : "none", color: noteMode ? COLORS.accent : COLORS.textDim, fontFamily: "'Source Sans 3', sans-serif", fontSize: 13, padding: "8px 16px", borderRadius: 10 }}>Notes {noteMode ? "ON" : "OFF"}</button>
             <button className="tool-btn" onClick={() => setExcludeMode(m => !m)} style={{ background: excludeMode ? "rgba(212,99,122,0.2)" : COLORS.surface, border: excludeMode ? `1px solid ${COLORS.accent}` : "none", color: excludeMode ? COLORS.error : COLORS.textDim, fontFamily: "'Source Sans 3', sans-serif", fontSize: 13, padding: "8px 16px", borderRadius: 10 }}>Remove {excludeMode ? "ON" : "OFF"}</button>
             <button className="tool-btn" onClick={handleHint} disabled={hintsUsed >= maxHintsNow} style={{ background: hintsUsed >= maxHintsNow ? `${COLORS.surface}88` : COLORS.surface, border: "none", color: hintsUsed >= maxHintsNow ? `${COLORS.textDim}44` : COLORS.correct, fontFamily: "'Source Sans 3', sans-serif", fontSize: 13, padding: "8px 16px", borderRadius: 10, opacity: hintsUsed >= maxHintsNow ? 0.5 : 1 }}>Hint ({maxHintsNow - hintsUsed})</button>
           </div>
@@ -698,7 +733,7 @@ export default function SudokuApp() {
           <div style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: 14, color: COLORS.textDim, marginBottom: 24 }}>Completed in {formatTime(time)}</div>
           <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.gold}33`, borderRadius: 20, padding: "28px 24px", position: "relative", overflow: "hidden" }}>
             <div style={{ position: "absolute", top: -20, right: -20, width: 80, height: 80, background: `radial-gradient(circle, ${COLORS.gold}15, transparent)`, borderRadius: "50%" }} />
-            <div style={{ fontSize: 11, letterSpacing: 5, textTransform: "uppercase", color: COLORS.gold, fontFamily: "'Source Sans 3', sans-serif", fontWeight: 600, marginBottom: 14 }}>Bubba's Dad Joke Prize</div>
+            <div style={{ fontSize: 11, letterSpacing: 5, textTransform: "uppercase", color: COLORS.gold, fontFamily: "'Source Sans 3', sans-serif", fontWeight: 600, marginBottom: 14 }}>Bubba's Prize</div>
             <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 18, lineHeight: 1.6, color: COLORS.text, fontStyle: "italic" }}>
               {jokeLoading ? "Cooking up something funny..." : `"${joke}"`}
             </div>
