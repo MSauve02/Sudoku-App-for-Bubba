@@ -288,6 +288,50 @@ export default function SudokuApp() {
   const [usedJokes, setUsedJokes] = useState([]);
   const [jokeLoading, setJokeLoading] = useState(false);
   const fallbackIndexRef = useRef(0);
+  const jokeDbRef = useRef(null);
+
+  // ---- Persistent joke storage using IndexedDB ----
+  const openJokeDb = useCallback(() => {
+    return new Promise((resolve, reject) => {
+      if (jokeDbRef.current) { resolve(jokeDbRef.current); return; }
+      const request = indexedDB.open("BubbaSudokuJokes", 1);
+      request.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains("jokes")) {
+          db.createObjectStore("jokes", { keyPath: "id", autoIncrement: true });
+        }
+      };
+      request.onsuccess = (e) => { jokeDbRef.current = e.target.result; resolve(e.target.result); };
+      request.onerror = () => reject("DB error");
+    });
+  }, []);
+
+  const saveJokeToDb = useCallback(async (jokeText) => {
+    try {
+      const db = await openJokeDb();
+      const tx = db.transaction("jokes", "readwrite");
+      tx.objectStore("jokes").add({ text: jokeText, timestamp: Date.now() });
+    } catch (e) { /* silently fail */ }
+  }, [openJokeDb]);
+
+  const loadJokesFromDb = useCallback(async () => {
+    try {
+      const db = await openJokeDb();
+      return new Promise((resolve) => {
+        const tx = db.transaction("jokes", "readonly");
+        const request = tx.objectStore("jokes").getAll();
+        request.onsuccess = () => resolve(request.result.map(r => r.text));
+        request.onerror = () => resolve([]);
+      });
+    } catch (e) { return []; }
+  }, [openJokeDb]);
+
+  // Load saved jokes on mount
+  useEffect(() => {
+    loadJokesFromDb().then(saved => {
+      if (saved.length > 0) setUsedJokes(saved);
+    });
+  }, [loadJokesFromDb]);
 
   const gridConfig = gridKey ? GRID_CONFIGS[gridKey] : null;
   const gridSize = gridConfig ? gridConfig.size : 9;
@@ -338,7 +382,7 @@ export default function SudokuApp() {
       const seed = Math.floor(Math.random() * 999999);
       const timestamp = Date.now();
 
-      const previousList = usedJokes.slice(-20).map((j, i) => `${i + 1}. ${j}`).join("\n");
+      const previousList = usedJokes.slice(-40).map((j, i) => `${i + 1}. ${j}`).join("\n");
       const avoidSection = previousList.length > 0
         ? `\n\nCRITICAL — These have ALL been used already. You MUST create something COMPLETELY different — different topic, different structure, different punchline. Do NOT rephrase, remix, or reword any of these:\n${previousList}`
         : "";
@@ -359,6 +403,7 @@ export default function SudokuApp() {
       if (jokeText && jokeText.length > 5) {
         setJoke(jokeText);
         setUsedJokes(prev => [...prev, jokeText]);
+        saveJokeToDb(jokeText);
       } else {
         throw new Error("Bad response");
       }
